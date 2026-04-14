@@ -52,8 +52,16 @@ function App() {
     setCurrentPage(PAGE_LOGIN);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("jwt_token");
+  const handleLogout = async () => {
+    // Call logout endpoint to clear HTTP-only cookie
+    try {
+      await fetch("https://api.alexbierhance.com/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      // Continue with logout even if request fails
+    }
     setSessionToken("");
     setCurrentPage(PAGE_LOGIN);
   };

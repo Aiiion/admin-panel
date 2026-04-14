@@ -18,6 +18,7 @@ function TwoFactorPage(props) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           sessionToken: props.sessionToken,
           code: verificationCode(),
@@ -30,8 +31,7 @@ function TwoFactorPage(props) {
         throw new Error(data.message || "Verification failed");
       }
 
-      // Save JWT token to localStorage
-      localStorage.setItem("jwt_token", data.token);
+      // JWT token is now set as HTTP-only cookie by the server
       props.onSuccess();
     } catch (err) {
       setError(err.message);

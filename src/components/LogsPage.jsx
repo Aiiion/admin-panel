@@ -14,16 +14,12 @@ function LogsPage(props) {
     setError("");
 
     try {
-      const token = localStorage.getItem("jwt_token");
       const response = await fetch(`${API_BASE}/v1/logs?page=${page}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       });
 
       if (response.status === 401) {
         // Token expired or invalid
-        localStorage.removeItem("jwt_token");
         props.onSessionExpired?.();
         return;
       }
