@@ -4,6 +4,7 @@ import darkIcon from "./assets/dark-mode.svg";
 import LoginPage from "./components/LoginPage";
 import TwoFactorPage from "./components/TwoFactorPage";
 import LogsPage from "./components/LogsPage";
+import { API_BASE } from "./config";
 import "./App.css";
 
 // Auth page states
@@ -55,7 +56,7 @@ function App() {
   const handleLogout = async () => {
     // Call logout endpoint to clear HTTP-only cookie
     try {
-      await fetch("https://api.alexbierhance.com/v1/auth/logout", {
+      await fetch(`${API_BASE}/v1/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

@@ -1,6 +1,5 @@
 import { createSignal, Show } from "solid-js";
-
-const API_BASE = "https://api.alexbierhance.com";
+import { API_BASE } from "../config";
 
 function LoginPage(props) {
   const [password, setPassword] = createSignal("");

@@ -1,6 +1,5 @@
 import { createSignal, onMount, Show, For } from "solid-js";
-
-const API_BASE = "https://api.alexbierhance.com";
+import { API_BASE } from "../config";
 
 function LogsPage(props) {
   const [logs, setLogs] = createSignal([]);
