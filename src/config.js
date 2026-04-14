@@ -1,4 +1,5 @@
-// export const API_BASE = "https://api.alexbierhance.com";
-export const API_BASE = "https://localhost:3000";
+export const API_BASE = import.meta.env.DEV
+  ? "http://localhost:3000"
+  : "https://api.alexbierhance.com";
 
 
