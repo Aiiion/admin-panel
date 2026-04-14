@@ -1,27 +1,31 @@
-import { createEffect, createSignal } from "solid-js";
-import ghLogo from "./assets/github/github-mark.svg";
-import ghLogoWhite from "./assets/github/github-mark-white.svg";
-import liLogo from "./assets/linkedin/linkedin-mark.svg";
-import liLogoWhite from "./assets/linkedin/linkedin-mark-white.svg";
-import weatherLogo from "./assets/weather/logo512.png";
-import weatherLogoWhite from "./assets/weather/white-logo512.png";
-import bulbDark from "./assets/light-play/bulb-dark.png";
-import bulbLight from "./assets/light-play/bulb-light.png";
+import { createEffect, createSignal, Show } from "solid-js";
 import lightIcon from "./assets/light-mode.svg";
 import darkIcon from "./assets/dark-mode.svg";
-import { arrowDown } from "./assets/icons.jsx";
-import data from "./data.json";
+import LoginPage from "./components/LoginPage";
+import TwoFactorPage from "./components/TwoFactorPage";
+import LogsPage from "./components/LogsPage";
 import "./App.css";
+
+// Auth page states
+const PAGE_LOGIN = "login";
+const PAGE_2FA = "2fa";
+const PAGE_LOGS = "logs";
 
 function App() {
   const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
-  const [skills, setSkills] = createSignal(false);
-  const [projects, setProjects] = createSignal(false);
-  const [darkTheme, setDarkTheme] = createSignal(systemTheme == "dark");
+
+  // Theme state
+  const [darkTheme, setDarkTheme] = createSignal(systemTheme === "dark");
+
+  // Auth state
+  const [currentPage, setCurrentPage] = createSignal(PAGE_LOGIN);
+  const [sessionToken, setSessionToken] = createSignal("");
+
   const cssSetProp = (prop, value) =>
     document.documentElement.style.setProperty(prop, value);
+
   createEffect(() => {
     if (!darkTheme()) {
       cssSetProp("--main-bg-img", "var(--light-bg-img");
@@ -33,6 +37,27 @@ function App() {
       cssSetProp("--main-color", "var(--dark-color");
     }
   });
+
+  const handleLoginSuccess = (token) => {
+    setSessionToken(token);
+    setCurrentPage(PAGE_2FA);
+  };
+
+  const handleVerifySuccess = () => {
+    setCurrentPage(PAGE_LOGS);
+  };
+
+  const handleBackToLogin = () => {
+    setSessionToken("");
+    setCurrentPage(PAGE_LOGIN);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("jwt_token");
+    setSessionToken("");
+    setCurrentPage(PAGE_LOGIN);
+  };
+
   return (
     <>
       <button
@@ -46,102 +71,23 @@ function App() {
           alt="theme icon"
         />
       </button>
+
       <article id="main">
-        <h1>{data.title}</h1>
-        <h3>{data.introduction}</h3>
-        <article class="card">
-          <button
-            class="button-main hover-underline"
-            onClick={() => setSkills((s) => !s)}
-            aria-expanded={skills()}
-          >
-            <h3 class="pt-0 slim">
-              {data.skillsBtn} {arrowDown(skills())}
-            </h3>
-          </button>
-          <section
-            class="dropdown"
-            classList={{ open: skills() }}
-            aria-hidden={!skills()}
-          >
-            <p>
-              <b>I have:</b>
-            </p>
-            <ul>
-              {data.skills.map((item) => (
-                <li>{item}</li>
-              ))}
-            </ul>
-          </section>
-        </article>
-        <article class="card pt-0">
-          <button
-            class="button-main hover-underline"
-            onClick={() => setProjects((p) => !p)}
-            aria-expanded={projects()}
-          >
-            <h3 class="pt-0 slim">Projects {arrowDown(projects())}</h3>
-          </button>
-          <section
-            class="dropdown"
-            classList={{ open: projects() }}
-            aria-hidden={!projects()}
-          >
-            <a
-              href="https://weather.alexbierhance.com"
-              class="project"
-              target="_blank"
-            >
-              <img
-                src={darkTheme() ? weatherLogoWhite : weatherLogo}
-                class="logo large"
-                alt="weather app logo"
-              />
-              <b class="decoration-none">weather</b>
-            </a>
-            <a
-              href="https://light-play.alexbierhance.com"
-              class="project"
-              target="_blank"
-            >
-              <img
-                src={darkTheme() ? bulbLight : bulbDark}
-                class="logo large"
-                alt="light bulb logo"
-              />
-              <b class="decoration-none">light-play</b>
-              <small class="sub-text light">(desktop only)</small>
-            </a>
-          </section>
-        </article>
-        <footer class="pt-1">
-          <p class="sub-text">Check out my socials or email me to learn more</p>
-          <Show when={data.github}>
-            <a href={data.github} target="_blank">
-              <img
-                src={darkTheme() ? ghLogoWhite : ghLogo}
-                class="logo small"
-                alt="Github logo"
-              />
-            </a>
-          </Show>
+        <Show when={currentPage() === PAGE_LOGIN}>
+          <LoginPage onSuccess={handleLoginSuccess} />
+        </Show>
 
-          <Show when={data.linkedIn}>
-            <a href={data.linkedIn} target="_blank">
-              <img
-                src={darkTheme() ? liLogoWhite : liLogo}
-                class="logo small"
-                alt="LinkedIn logo"
-              />
-            </a>
-          </Show>
+        <Show when={currentPage() === PAGE_2FA}>
+          <TwoFactorPage
+            sessionToken={sessionToken()}
+            onSuccess={handleVerifySuccess}
+            onBack={handleBackToLogin}
+          />
+        </Show>
 
-          <div>
-            <a href="mailto:alex@bierhance.se" target="_blank">
-              <b>{data.email}</b>
-            </a>
-          </div>
-        </footer>
+        <Show when={currentPage() === PAGE_LOGS}>
+          <LogsPage onLogout={handleLogout} onSessionExpired={handleLogout} />
+        </Show>
       </article>
     </>
   );
