@@ -7,13 +7,39 @@ function LogsPage(props) {
   const [currentPage, setCurrentPage] = createSignal(1);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [search, setSearch] = createSignal("");
+  const [selectedCodes, setSelectedCodes] = createSignal([]);
+  const [availableCodes, setAvailableCodes] = createSignal([]);
+  let searchTimeout;
 
-  const fetchLogs = async (page = 1) => {
+  const fetchAvailableCodes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/logs/meta/code`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const res = await response.json();
+        setAvailableCodes(res.data.values || []);
+        console.log("Available codes fetched:", res.data.values);
+      }
+    } catch (err) {
+      console.error("Failed to fetch available codes:", err);
+    }
+  };
+
+  const fetchLogs = async (page = 1, searchQuery = search(), codes = selectedCodes()) => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/v1/logs?page=${page}`, {
+      const params = new URLSearchParams({ page: page.toString() });
+      if (searchQuery) {
+        params.set("search", searchQuery);
+      }
+      if (codes && codes.length > 0) {
+        codes.forEach((c) => params.append("code", c));
+      }
+      const response = await fetch(`${API_BASE}/v1/logs?${params}`, {
         credentials: "include",
       });
 
@@ -40,13 +66,37 @@ function LogsPage(props) {
   };
 
   onMount(() => {
+    fetchAvailableCodes();
     fetchLogs(1);
   });
 
   const goToPage = (page) => {
     if (page >= 1 && page <= pagination()?.totalPages) {
-      fetchLogs(page);
+      fetchLogs(page, search(), selectedCodes());
     }
+  };
+
+  const handleSearchInput = (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchLogs(1, value, selectedCodes());
+    }, 500);
+  };
+
+  const handleCodeChange = (e) => {
+    const code = e.target.value;
+    let updated = [...selectedCodes()];
+    if (e.target.checked) {
+      if (!updated.includes(code)) updated.push(code);
+    } else {
+      updated = updated.filter((c) => c !== code);
+    }
+    setSelectedCodes(updated);
+    setCurrentPage(1);
+    fetchLogs(1, search(), updated);
   };
 
   const formatDate = (dateString) => {
@@ -77,9 +127,32 @@ function LogsPage(props) {
     <div class="logs-container">
       <div class="logs-header">
         <h1>Request Logs</h1>
-        <button class="refresh-btn" onClick={() => fetchLogs(currentPage())} disabled={loading()}>
-          {loading() ? "Refreshing..." : "Refresh"}
-        </button>
+        <div class="logs-actions">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search logs..."
+            value={search()}
+            onInput={handleSearchInput}
+          />
+          <div class="code-filter-group">
+            <For each={availableCodes()}>
+              {(code) => (
+                <label>
+                  <input
+                    type="checkbox"
+                    value={code}
+                    checked={selectedCodes().includes(String(code))}
+                    onChange={handleCodeChange}
+                  /> {code}
+                </label>
+              )}
+            </For>
+          </div>
+          <button class="refresh-btn" onClick={() => fetchLogs(currentPage(), search(), selectedCodes())} disabled={loading()}>
+            {loading() ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <Show when={error()}>
@@ -95,14 +168,14 @@ function LogsPage(props) {
           <table class="logs-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Time</th>
-                <th>Method</th>
-                <th>Route</th>
-                <th>Code</th>
-                <th>Type</th>
-                <th>IP</th>
-                <th>Description</th>
+                <th class="col-id">ID</th>
+                <th class="col-time">Time</th>
+                <th class="col-method">Method</th>
+                <th class="col-route">Route</th>
+                <th class="col-code">Code</th>
+                <th class="col-type">Type</th>
+                <th class="col-ip">IP</th>
+                <th class="col-description">Description</th>
               </tr>
             </thead>
             <tbody>

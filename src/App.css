@@ -256,6 +256,51 @@ h3.slim {
   cursor: not-allowed;
 }
 
+.logs-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.code-filter-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.code-filter-group label {
+  font-size: 0.85rem;
+  color: var(--main-color);
+  background: rgba(128, 128, 128, 0.07);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+.code-filter-group input[type="checkbox"] {
+  margin-right: 0.2em;
+}
+
+.search-input {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--main-color);
+  background: transparent;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 6px;
+  min-width: 200px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(128, 128, 128, 0.6);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--main-color);
+  box-shadow: 0 0 0 2px rgba(var(--main-color-rgb), 0.1);
+}
+
 .table-wrapper {
   overflow-x: auto;
   border-radius: 8px;
@@ -264,6 +309,8 @@ h3.slim {
 
 .logs-table {
   width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.875rem;
   text-align: left;
@@ -280,6 +327,15 @@ h3.slim {
   font-weight: 600;
   white-space: nowrap;
 }
+
+.logs-table .col-id { width: 5%; }
+.logs-table .col-time { width: 14%; }
+.logs-table .col-method { width: 7%; }
+.logs-table .col-route { width: 18%; }
+.logs-table .col-code { width: 6%; }
+.logs-table .col-type { width: 7%; }
+.logs-table .col-ip { width: 10%; }
+.logs-table .col-description { width: 33%; }
 
 .logs-table tbody tr:hover {
   background: rgba(128, 128, 128, 0.05);
