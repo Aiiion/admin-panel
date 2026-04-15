@@ -10,6 +10,7 @@ function LogsPage(props) {
   const [search, setSearch] = createSignal("");
   const [selectedCodes, setSelectedCodes] = createSignal([]);
   const [availableCodes, setAvailableCodes] = createSignal([]);
+  const [showCodeFilter, setShowCodeFilter] = createSignal(false);
   let searchTimeout;
 
   const fetchAvailableCodes = async () => {
@@ -135,19 +136,29 @@ function LogsPage(props) {
             value={search()}
             onInput={handleSearchInput}
           />
-          <div class="code-filter-group">
-            <For each={availableCodes()}>
-              {(code) => (
-                <label>
-                  <input
-                    type="checkbox"
-                    value={code}
-                    checked={selectedCodes().includes(String(code))}
-                    onChange={handleCodeChange}
-                  /> {code}
-                </label>
-              )}
-            </For>
+          <div class="code-filter-wrapper">
+            <button
+              class="filter-btn"
+              onClick={() => setShowCodeFilter(!showCodeFilter())}
+            >
+              Codes {selectedCodes().length > 0 ? `(${selectedCodes().length})` : ""}
+            </button>
+            <Show when={showCodeFilter()}>
+              <div class="code-filter-dropdown">
+                <For each={availableCodes()}>
+                  {(code) => (
+                    <label>
+                      <input
+                        type="checkbox"
+                        value={code}
+                        checked={selectedCodes().includes(String(code))}
+                        onChange={handleCodeChange}
+                      /> {code}
+                    </label>
+                  )}
+                </For>
+              </div>
+            </Show>
           </div>
           <button class="refresh-btn" onClick={() => fetchLogs(currentPage(), search(), selectedCodes())} disabled={loading()}>
             {loading() ? "Refreshing..." : "Refresh"}
