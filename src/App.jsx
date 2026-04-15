@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onMount, Show } from "solid-js";
 import lightIcon from "./assets/light-mode.svg";
 import darkIcon from "./assets/dark-mode.svg";
 import LoginPage from "./components/LoginPage";
@@ -23,6 +23,26 @@ function App() {
   // Auth state
   const [currentPage, setCurrentPage] = createSignal(PAGE_LOGIN);
   const [sessionToken, setSessionToken] = createSignal("");
+  const [checkingSession, setCheckingSession] = createSignal(true);
+
+  // Check for existing valid session on mount
+  onMount(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/auth/verify-token`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        // Session is valid, skip to logs page
+        setCurrentPage(PAGE_LOGS);
+      }
+    } catch (err) {
+      // Session invalid or network error, stay on login
+    } finally {
+      setCheckingSession(false);
+    }
+  });
 
   const cssSetProp = (prop, value) =>
     document.documentElement.style.setProperty(prop, value);
@@ -82,11 +102,17 @@ function App() {
       </button>
 
       <article id="main">
-        <Show when={currentPage() === PAGE_LOGIN}>
+        <Show when={checkingSession()}>
+          <div class="auth-box">
+            <p>Checking session...</p>
+          </div>
+        </Show>
+
+        <Show when={!checkingSession() && currentPage() === PAGE_LOGIN}>
           <LoginPage onSuccess={handleLoginSuccess} />
         </Show>
 
-        <Show when={currentPage() === PAGE_2FA}>
+        <Show when={!checkingSession() && currentPage() === PAGE_2FA}>
           <TwoFactorPage
             sessionToken={sessionToken()}
             onSuccess={handleVerifySuccess}
@@ -94,7 +120,7 @@ function App() {
           />
         </Show>
 
-        <Show when={currentPage() === PAGE_LOGS}>
+        <Show when={!checkingSession() && currentPage() === PAGE_LOGS}>
           <LogsPage onLogout={handleLogout} onSessionExpired={handleLogout} />
         </Show>
       </article>
