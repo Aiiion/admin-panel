@@ -11,7 +11,22 @@ function LogsPage(props) {
   const [selectedCodes, setSelectedCodes] = createSignal([]);
   const [availableCodes, setAvailableCodes] = createSignal([]);
   const [showCodeFilter, setShowCodeFilter] = createSignal(false);
+  const [columns, setColumns] = createSignal([]);
   let searchTimeout;
+
+  const fetchMeta = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/logs/meta`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const res = await response.json();
+        setColumns(res.data.values || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch log meta:", err);
+    }
+  };
 
   const fetchAvailableCodes = async () => {
     try {
@@ -67,6 +82,7 @@ function LogsPage(props) {
   };
 
   onMount(() => {
+    fetchMeta();
     fetchAvailableCodes();
     fetchLogs(1);
   });
@@ -179,14 +195,9 @@ function LogsPage(props) {
           <table class="logs-table">
             <thead>
               <tr>
-                <th class="col-id">ID</th>
-                <th class="col-time">Time</th>
-                <th class="col-method">Method</th>
-                <th class="col-route">Route</th>
-                <th class="col-code">Code</th>
-                <th class="col-type">Type</th>
-                <th class="col-ip">IP</th>
-                <th class="col-description">Description</th>
+                <For each={columns()}>
+                  {(col) => <th>{col}</th>}
+                </For>
               </tr>
             </thead>
             <tbody>
