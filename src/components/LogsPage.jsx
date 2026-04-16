@@ -207,14 +207,25 @@ function LogsPage(props) {
               <For each={logs()}>
                 {(log) => (
                   <tr>
-                    <td>{log.id}</td>
-                    <td class="nowrap">{formatDate(log.created_at)}</td>
-                    <td><span class="method-badge">{log.method}</span></td>
-                    <td class="route-cell">{log.route}</td>
-                    <td><span class={`code-badge ${getCodeClass(log.code)}`}>{log.code}</span></td>
-                    <td><span class={`type-badge ${getTypeClass(log.type)}`}>{log.type}</span></td>
-                    <td class="ip-cell">{log.ip}</td>
-                    <td class="description-cell">{log.description || "-"}</td>
+                    <For each={columns()}>
+                      {(col) => {
+                        if (col === "created_at")
+                          return <td class="nowrap">{formatDate(log.created_at)}</td>;
+                        if (col === "method")
+                          return <td><span class="method-badge">{log.method}</span></td>;
+                        if (col === "code")
+                          return <td><span class={`code-badge ${getCodeClass(log.code)}`}>{log.code}</span></td>;
+                        if (col === "type")
+                          return <td><span class={`type-badge ${getTypeClass(log.type)}`}>{log.type}</span></td>;
+                        if (col === "route")
+                          return <td class="route-cell">{log.route}</td>;
+                        if (col === "ip")
+                          return <td class="ip-cell">{log.ip}</td>;
+                        if (col === "description")
+                          return <td class="description-cell">{log.description || "-"}</td>;
+                        return <td>{log[col] ?? "-"}</td>;
+                      }}
+                    </For>
                   </tr>
                 )}
               </For>
