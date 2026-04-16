@@ -53,10 +53,6 @@ function LogsPage(props) {
       if (response.ok) {
         const res = await response.json();
         setAvailableCodes(res.data.values || []);
-       if (response.ok) {
-         const res = await response.json();
-         setAvailableCodes(res.data.values || []);
-       }
       }
     } catch (err) {
       console.error("Failed to fetch available codes:", err);
