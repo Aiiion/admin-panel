@@ -12,7 +12,24 @@ function LogsPage(props) {
   const [availableCodes, setAvailableCodes] = createSignal([]);
   const [showCodeFilter, setShowCodeFilter] = createSignal(false);
   const [columns, setColumns] = createSignal([]);
+  const [tooltip, setTooltip] = createSignal({ text: "", x: 0, y: 0, visible: false });
   let searchTimeout;
+
+  const handleTableMouseMove = (e) => {
+    const td = e.target.closest("td");
+    if (td) {
+      const text = td.textContent?.trim();
+      if (text && text !== "-") {
+        setTooltip({ text, x: e.clientX, y: e.clientY, visible: true });
+        return;
+      }
+    }
+    setTooltip((t) => ({ ...t, visible: false }));
+  };
+
+  const handleTableMouseLeave = () => {
+    setTooltip((t) => ({ ...t, visible: false }));
+  };
 
   const fetchMeta = async () => {
     try {
@@ -194,7 +211,7 @@ function LogsPage(props) {
       </Show>
 
       <Show when={logs().length > 0}>
-        <div class="table-wrapper">
+        <div class="table-wrapper" onMouseMove={handleTableMouseMove} onMouseLeave={handleTableMouseLeave}>
           <table class="logs-table">
             <thead>
               <tr>
@@ -279,6 +296,15 @@ function LogsPage(props) {
           Logout
         </button>
       </div>
+
+      <Show when={tooltip().visible}>
+        <div
+          class="td-tooltip"
+          style={{ left: `${tooltip().x + 14}px`, top: `${tooltip().y + 14}px` }}
+        >
+          {tooltip().text}
+        </div>
+      </Show>
     </div>
   );
 }
