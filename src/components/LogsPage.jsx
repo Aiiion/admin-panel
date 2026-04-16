@@ -7,13 +7,76 @@ function LogsPage(props) {
   const [currentPage, setCurrentPage] = createSignal(1);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [search, setSearch] = createSignal("");
+  const [selectedCodes, setSelectedCodes] = createSignal([]);
+  const [availableCodes, setAvailableCodes] = createSignal([]);
+  const [showCodeFilter, setShowCodeFilter] = createSignal(false);
+  const [columns, setColumns] = createSignal([]);
+  const [metaError, setMetaError] = createSignal("");
+  const [tooltip, setTooltip] = createSignal({ text: "", x: 0, y: 0, visible: false });
+  let searchTimeout;
 
-  const fetchLogs = async (page = 1) => {
+  const handleTableMouseMove = (e) => {
+    const td = e.target.closest("td");
+    if (td) {
+      const text = td.textContent?.trim();
+      if (text && text !== "-") {
+        setTooltip({ text, x: e.clientX, y: e.clientY, visible: true });
+        return;
+      }
+    }
+    setTooltip((t) => ({ ...t, visible: false }));
+  };
+
+  const handleTableMouseLeave = () => {
+    setTooltip((t) => ({ ...t, visible: false }));
+  };
+
+  const fetchMeta = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/logs/meta`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const res = await response.json();
+        setColumns(res.data.values || []);
+        setMetaError("");
+      } else {
+        setMetaError("Failed to load column headers");
+      }
+    } catch (err) {
+      console.error("Failed to fetch log meta:", err);
+      setMetaError("Failed to load column headers");
+    }
+  };
+
+  const fetchAvailableCodes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/logs/meta/code`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const res = await response.json();
+        setAvailableCodes(res.data.values || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch available codes:", err);
+    }
+  };
+
+  const fetchLogs = async (page = 1, searchQuery = search(), codes = selectedCodes()) => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/v1/logs?page=${page}`, {
+      const params = new URLSearchParams({ page: page.toString() });
+      if (searchQuery) {
+        params.set("search", searchQuery);
+      }
+      if (codes && codes.length > 0) {
+        codes.forEach((c) => params.append("code", c));
+      }
+      const response = await fetch(`${API_BASE}/v1/logs?${params}`, {
         credentials: "include",
       });
 
@@ -40,13 +103,38 @@ function LogsPage(props) {
   };
 
   onMount(() => {
+    fetchMeta();
+    fetchAvailableCodes();
     fetchLogs(1);
   });
 
   const goToPage = (page) => {
     if (page >= 1 && page <= pagination()?.totalPages) {
-      fetchLogs(page);
+      fetchLogs(page, search(), selectedCodes());
     }
+  };
+
+  const handleSearchInput = (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchLogs(1, value, selectedCodes());
+    }, 500);
+  };
+
+  const handleCodeChange = (e) => {
+    const code = e.target.value;
+    let updated = [...selectedCodes()];
+    if (e.target.checked) {
+      if (!updated.includes(code)) updated.push(code);
+    } else {
+      updated = updated.filter((c) => c !== code);
+    }
+    setSelectedCodes(updated);
+    setCurrentPage(1);
+    fetchLogs(1, search(), updated);
   };
 
   const formatDate = (dateString) => {
@@ -77,9 +165,42 @@ function LogsPage(props) {
     <div class="logs-container">
       <div class="logs-header">
         <h1>Request Logs</h1>
-        <button class="refresh-btn" onClick={() => fetchLogs(currentPage())} disabled={loading()}>
-          {loading() ? "Refreshing..." : "Refresh"}
-        </button>
+        <div class="logs-actions">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search logs..."
+            value={search()}
+            onInput={handleSearchInput}
+          />
+          <div class="code-filter-wrapper">
+            <button
+              class="filter-btn"
+              onClick={() => setShowCodeFilter(!showCodeFilter())}
+            >
+              Codes {selectedCodes().length > 0 ? `(${selectedCodes().length})` : ""}
+            </button>
+            <Show when={showCodeFilter()}>
+              <div class="code-filter-dropdown">
+                <For each={availableCodes()}>
+                  {(code) => (
+                    <label>
+                      <input
+                        type="checkbox"
+                        value={code}
+                        checked={selectedCodes().includes(String(code))}
+                        onChange={handleCodeChange}
+                      /> {code}
+                    </label>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+          <button class="refresh-btn" onClick={() => fetchLogs(currentPage(), search(), selectedCodes())} disabled={loading()}>
+            {loading() ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <Show when={error()}>
@@ -91,32 +212,42 @@ function LogsPage(props) {
       </Show>
 
       <Show when={logs().length > 0}>
-        <div class="table-wrapper">
+        <div class="table-wrapper" onMouseMove={handleTableMouseMove} onMouseLeave={handleTableMouseLeave}>
           <table class="logs-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Time</th>
-                <th>Method</th>
-                <th>Route</th>
-                <th>Code</th>
-                <th>Type</th>
-                <th>IP</th>
-                <th>Description</th>
+                <Show when={metaError()} fallback={
+                  <For each={columns()}>
+                    {(col) => <th>{col}</th>}
+                  </For>
+                }>
+                  <th colspan="100%" class="meta-error">{metaError()}</th>
+                </Show>
               </tr>
             </thead>
             <tbody>
               <For each={logs()}>
                 {(log) => (
                   <tr>
-                    <td>{log.id}</td>
-                    <td class="nowrap">{formatDate(log.created_at)}</td>
-                    <td><span class="method-badge">{log.method}</span></td>
-                    <td class="route-cell">{log.route}</td>
-                    <td><span class={`code-badge ${getCodeClass(log.code)}`}>{log.code}</span></td>
-                    <td><span class={`type-badge ${getTypeClass(log.type)}`}>{log.type}</span></td>
-                    <td class="ip-cell">{log.ip}</td>
-                    <td class="description-cell">{log.description || "-"}</td>
+                    <For each={columns()}>
+                      {(col) => {
+                        if (col === "created_at")
+                          return <td class="nowrap">{formatDate(log.created_at)}</td>;
+                        if (col === "method")
+                          return <td><span class="method-badge">{log.method}</span></td>;
+                        if (col === "code")
+                          return <td><span class={`code-badge ${getCodeClass(log.code)}`}>{log.code}</span></td>;
+                        if (col === "type")
+                          return <td><span class={`type-badge ${getTypeClass(log.type)}`}>{log.type}</span></td>;
+                        if (col === "route")
+                          return <td class="route-cell">{log.route}</td>;
+                        if (col === "ip")
+                          return <td class="ip-cell">{log.ip}</td>;
+                        if (col === "description")
+                          return <td class="description-cell">{log.description || "-"}</td>;
+                        return <td>{log[col] ?? "-"}</td>;
+                      }}
+                    </For>
                   </tr>
                 )}
               </For>
@@ -170,6 +301,15 @@ function LogsPage(props) {
           Logout
         </button>
       </div>
+
+      <Show when={tooltip().visible}>
+        <div
+          class="td-tooltip"
+          style={{ left: `${tooltip().x + 14}px`, top: `${tooltip().y + 14}px` }}
+        >
+          {tooltip().text}
+        </div>
+      </Show>
     </div>
   );
 }
