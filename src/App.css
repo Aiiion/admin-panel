@@ -366,6 +366,13 @@ h3.slim {
   white-space: nowrap;
 }
 
+.logs-table th.meta-error {
+  color: #dc3545;
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
 .logs-table .col-id { width: 5%; }
 .logs-table .col-time { width: 14%; }
 .logs-table .col-method { width: 7%; }

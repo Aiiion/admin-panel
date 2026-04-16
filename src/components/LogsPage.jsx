@@ -12,6 +12,7 @@ function LogsPage(props) {
   const [availableCodes, setAvailableCodes] = createSignal([]);
   const [showCodeFilter, setShowCodeFilter] = createSignal(false);
   const [columns, setColumns] = createSignal([]);
+  const [metaError, setMetaError] = createSignal("");
   const [tooltip, setTooltip] = createSignal({ text: "", x: 0, y: 0, visible: false });
   let searchTimeout;
 
@@ -39,9 +40,13 @@ function LogsPage(props) {
       if (response.ok) {
         const res = await response.json();
         setColumns(res.data.values || []);
+        setMetaError("");
+      } else {
+        setMetaError("Failed to load column headers");
       }
     } catch (err) {
       console.error("Failed to fetch log meta:", err);
+      setMetaError("Failed to load column headers");
     }
   };
 
@@ -211,9 +216,13 @@ function LogsPage(props) {
           <table class="logs-table">
             <thead>
               <tr>
-                <For each={columns()}>
-                  {(col) => <th>{col}</th>}
-                </For>
+                <Show when={metaError()} fallback={
+                  <For each={columns()}>
+                    {(col) => <th>{col}</th>}
+                  </For>
+                }>
+                  <th colspan="100%" class="meta-error">{metaError()}</th>
+                </Show>
               </tr>
             </thead>
             <tbody>
