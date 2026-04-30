@@ -1,8 +1,8 @@
 import { createSignal, onMount, Show, For } from "solid-js";
 import { API_BASE } from "../config";
 
-function LogsPage(props) {
-  const [logs, setLogs] = createSignal([]);
+function ResourceTable(props) {
+  const [rows, setRows] = createSignal([]);
   const [pagination, setPagination] = createSignal(null);
   const [currentPage, setCurrentPage] = createSignal(1);
   const [loading, setLoading] = createSignal(false);
@@ -34,7 +34,7 @@ function LogsPage(props) {
 
   const fetchMeta = async () => {
     try {
-      const response = await fetch(`${API_BASE}/v1/logs/meta`, {
+      const response = await fetch(`${API_BASE}${props.resource.meta}`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -44,44 +44,40 @@ function LogsPage(props) {
       } else {
         setMetaError("Failed to load column headers");
       }
-    } catch (err) {
-      console.error("Failed to fetch log meta:", err);
+    } catch {
       setMetaError("Failed to load column headers");
     }
   };
 
   const fetchAvailableCodes = async () => {
     try {
-      const response = await fetch(`${API_BASE}/v1/logs/meta/code`, {
+      const response = await fetch(`${API_BASE}${props.resource.meta}/code`, {
         credentials: "include",
       });
       if (response.ok) {
         const res = await response.json();
         setAvailableCodes(res.data.values || []);
       }
-    } catch (err) {
-      console.error("Failed to fetch available codes:", err);
+    } catch {
+      // Code filter is optional; silently skip if unavailable
     }
   };
 
-  const fetchLogs = async (page = 1, searchQuery = search(), codes = selectedCodes()) => {
+  const fetchRows = async (page = 1, searchQuery = search(), codes = selectedCodes()) => {
     setLoading(true);
     setError("");
 
     try {
       const params = new URLSearchParams({ page: page.toString() });
-      if (searchQuery) {
-        params.set("search", searchQuery);
-      }
+      if (searchQuery) params.set("search", searchQuery);
       if (codes && codes.length > 0) {
         codes.forEach((c) => params.append("code", c));
       }
-      const response = await fetch(`${API_BASE}/v1/logs?${params}`, {
+      const response = await fetch(`${API_BASE}${props.resource.endpoint}?${params}`, {
         credentials: "include",
       });
 
       if (response.status === 401) {
-        // Token expired or invalid
         props.onSessionExpired?.();
         return;
       }
@@ -89,10 +85,10 @@ function LogsPage(props) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to fetch logs");
+        throw new Error(data.message || "Failed to fetch data");
       }
 
-      setLogs(data.data);
+      setRows(data.data);
       setPagination(data.pagination);
       setCurrentPage(page);
     } catch (err) {
@@ -105,12 +101,12 @@ function LogsPage(props) {
   onMount(() => {
     fetchMeta();
     fetchAvailableCodes();
-    fetchLogs(1);
+    fetchRows(1);
   });
 
   const goToPage = (page) => {
     if (page >= 1 && page <= pagination()?.totalPages) {
-      fetchLogs(page, search(), selectedCodes());
+      fetchRows(page, search(), selectedCodes());
     }
   };
 
@@ -120,7 +116,7 @@ function LogsPage(props) {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       setCurrentPage(1);
-      fetchLogs(1, value, selectedCodes());
+      fetchRows(1, value, selectedCodes());
     }, 500);
   };
 
@@ -134,7 +130,7 @@ function LogsPage(props) {
     }
     setSelectedCodes(updated);
     setCurrentPage(1);
-    fetchLogs(1, search(), updated);
+    fetchRows(1, search(), updated);
   };
 
   const formatDate = (dateString) => {
@@ -162,17 +158,16 @@ function LogsPage(props) {
   };
 
   return (
-    <div class="logs-container">
-      <div class="logs-header">
-        <h1>Request Logs</h1>
-        <div class="logs-actions">
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Search logs..."
-            value={search()}
-            onInput={handleSearchInput}
-          />
+    <div class="resource-table-section">
+      <div class="logs-actions">
+        <input
+          type="text"
+          class="search-input"
+          placeholder={`Search ${props.resource.name}...`}
+          value={search()}
+          onInput={handleSearchInput}
+        />
+        <Show when={availableCodes().length > 0}>
           <div class="code-filter-wrapper">
             <button
               class="filter-btn"
@@ -197,21 +192,21 @@ function LogsPage(props) {
               </div>
             </Show>
           </div>
-          <button class="refresh-btn" onClick={() => fetchLogs(currentPage(), search(), selectedCodes())} disabled={loading()}>
-            {loading() ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
+        </Show>
+        <button class="refresh-btn" onClick={() => fetchRows(currentPage(), search(), selectedCodes())} disabled={loading()}>
+          {loading() ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       <Show when={error()}>
         <p class="error-message">{error()}</p>
       </Show>
 
-      <Show when={loading() && logs().length === 0}>
-        <p class="loading-text">Loading logs...</p>
+      <Show when={loading() && rows().length === 0}>
+        <p class="loading-text">Loading...</p>
       </Show>
 
-      <Show when={logs().length > 0}>
+      <Show when={rows().length > 0}>
         <div class="table-wrapper" onMouseMove={handleTableMouseMove} onMouseLeave={handleTableMouseLeave}>
           <table class="logs-table">
             <thead>
@@ -226,26 +221,26 @@ function LogsPage(props) {
               </tr>
             </thead>
             <tbody>
-              <For each={logs()}>
-                {(log) => (
+              <For each={rows()}>
+                {(row) => (
                   <tr>
                     <For each={columns()}>
                       {(col) => {
                         if (col === "created_at")
-                          return <td class="nowrap">{formatDate(log.created_at)}</td>;
+                          return <td class="nowrap">{formatDate(row.created_at)}</td>;
                         if (col === "method")
-                          return <td><span class="method-badge">{log.method}</span></td>;
+                          return <td><span class="method-badge">{row.method}</span></td>;
                         if (col === "code")
-                          return <td><span class={`code-badge ${getCodeClass(log.code)}`}>{log.code}</span></td>;
+                          return <td><span class={`code-badge ${getCodeClass(row.code)}`}>{row.code}</span></td>;
                         if (col === "type")
-                          return <td><span class={`type-badge ${getTypeClass(log.type)}`}>{log.type}</span></td>;
+                          return <td><span class={`type-badge ${getTypeClass(row.type)}`}>{row.type}</span></td>;
                         if (col === "route")
-                          return <td class="route-cell">{log.route}</td>;
+                          return <td class="route-cell">{row.route}</td>;
                         if (col === "ip")
-                          return <td class="ip-cell">{log.ip}</td>;
+                          return <td class="ip-cell">{row.ip}</td>;
                         if (col === "description")
-                          return <td class="description-cell">{log.description || "-"}</td>;
-                        return <td>{log[col] ?? "-"}</td>;
+                          return <td class="description-cell">{row.description || "-"}</td>;
+                        return <td>{row[col] ?? "-"}</td>;
                       }}
                     </For>
                   </tr>
@@ -292,15 +287,9 @@ function LogsPage(props) {
         </Show>
       </Show>
 
-      <Show when={!loading() && logs().length === 0 && !error()}>
-        <p class="no-logs">No logs found</p>
+      <Show when={!loading() && rows().length === 0 && !error()}>
+        <p class="no-logs">No data found</p>
       </Show>
-
-      <div class="logs-footer">
-        <button class="submit-btn logout-btn" onClick={props.onLogout}>
-          Logout
-        </button>
-      </div>
 
       <Show when={tooltip().visible}>
         <div
@@ -310,6 +299,78 @@ function LogsPage(props) {
           {tooltip().text}
         </div>
       </Show>
+    </div>
+  );
+}
+
+function LogsPage(props) {
+  const [resources, setResources] = createSignal([]);
+  const [activeTab, setActiveTab] = createSignal(0);
+  const [apiLoading, setApiLoading] = createSignal(true);
+  const [apiError, setApiError] = createSignal("");
+
+  onMount(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/v1`, { credentials: "include" });
+      if (res.status === 401) {
+        props.onSessionExpired?.();
+        return;
+      }
+      if (!res.ok) throw new Error("Failed to load API resources");
+      const data = await res.json();
+      setResources(data.resources || []);
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setApiLoading(false);
+    }
+  });
+
+  return (
+    <div class="logs-container">
+      <div class="logs-header">
+        <h1>Logs</h1>
+      </div>
+
+      <Show when={apiError()}>
+        <p class="error-message">{apiError()}</p>
+      </Show>
+
+      <Show when={apiLoading()}>
+        <p class="loading-text">Loading resources...</p>
+      </Show>
+
+      <Show when={resources().length > 0}>
+        <div class="resource-tabs">
+          <For each={resources()}>
+            {(resource, i) => (
+              <button
+                class={`tab-btn${activeTab() === i() ? " tab-btn-active" : ""}`}
+                onClick={() => setActiveTab(i())}
+              >
+                {resource.name}
+              </button>
+            )}
+          </For>
+        </div>
+
+        <For each={resources()}>
+          {(resource, i) => (
+            <Show when={activeTab() === i()}>
+              <ResourceTable
+                resource={resource}
+                onSessionExpired={props.onSessionExpired}
+              />
+            </Show>
+          )}
+        </For>
+      </Show>
+
+      <div class="logs-footer">
+        <button class="submit-btn logout-btn" onClick={props.onLogout}>
+          Logout
+        </button>
+      </div>
     </div>
   );
 }
