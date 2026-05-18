@@ -3,6 +3,7 @@ import lightIcon from "./assets/light-mode.svg";
 import darkIcon from "./assets/dark-mode.svg";
 import LoginPage from "./components/LoginPage";
 import TwoFactorPage from "./components/TwoFactorPage";
+import LandingPage from "./components/LandingPage";
 import LogsPage from "./components/LogsPage";
 import { API_BASE } from "./config";
 import "./App.css";
@@ -10,6 +11,7 @@ import "./App.css";
 // Auth page states
 const PAGE_LOGIN = "login";
 const PAGE_2FA = "2fa";
+const PAGE_LANDING = "landing";
 const PAGE_LOGS = "logs";
 
 function App() {
@@ -34,8 +36,8 @@ function App() {
       });
 
       if (response.ok) {
-        // Session is valid, skip to logs page
-        setCurrentPage(PAGE_LOGS);
+        // Session is valid, go to landing page
+        setCurrentPage(PAGE_LANDING);
       }
     } catch (err) {
       // Session invalid or network error, stay on login
@@ -65,6 +67,10 @@ function App() {
   };
 
   const handleVerifySuccess = () => {
+    setCurrentPage(PAGE_LANDING);
+  };
+
+  const handleViewLogs = () => {
     setCurrentPage(PAGE_LOGS);
   };
 
@@ -118,6 +124,10 @@ function App() {
             onSuccess={handleVerifySuccess}
             onBack={handleBackToLogin}
           />
+        </Show>
+
+        <Show when={!checkingSession() && currentPage() === PAGE_LANDING}>
+          <LandingPage onViewLogs={handleViewLogs} onLogout={handleLogout} />
         </Show>
 
         <Show when={!checkingSession() && currentPage() === PAGE_LOGS}>

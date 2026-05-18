@@ -1,5 +1,6 @@
 import { createSignal, onMount, Show, For } from "solid-js";
 import { API_BASE } from "../config";
+import { getFiltersComponent } from "../filters/index";
 
 function ResourceTable(props) {
   const [rows, setRows] = createSignal([]);
@@ -8,9 +9,7 @@ function ResourceTable(props) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
   const [search, setSearch] = createSignal("");
-  const [selectedCodes, setSelectedCodes] = createSignal([]);
-  const [availableCodes, setAvailableCodes] = createSignal([]);
-  const [showCodeFilter, setShowCodeFilter] = createSignal(false);
+  const [filterParams, setFilterParams] = createSignal([]);
   const [columns, setColumns] = createSignal([]);
   const [metaError, setMetaError] = createSignal("");
   const [tooltip, setTooltip] = createSignal({ text: "", x: 0, y: 0, visible: false });
@@ -49,30 +48,16 @@ function ResourceTable(props) {
     }
   };
 
-  const fetchAvailableCodes = async () => {
-    try {
-      const response = await fetch(`${API_BASE}${props.resource.meta}/code`, {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const res = await response.json();
-        setAvailableCodes(res.data.values || []);
-      }
-    } catch {
-      // Code filter is optional; silently skip if unavailable
-    }
-  };
+  const FiltersComponent = getFiltersComponent(props.resource.name);
 
-  const fetchRows = async (page = 1, searchQuery = search(), codes = selectedCodes()) => {
+  const fetchRows = async (page = 1, searchQuery = search(), filterEntries = filterParams()) => {
     setLoading(true);
     setError("");
 
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (searchQuery) params.set("search", searchQuery);
-      if (codes && codes.length > 0) {
-        codes.forEach((c) => params.append("code", c));
-      }
+      filterEntries.forEach(([key, value]) => params.append(key, value));
       const response = await fetch(`${API_BASE}${props.resource.endpoint}?${params}`, {
         credentials: "include",
       });
@@ -100,13 +85,12 @@ function ResourceTable(props) {
 
   onMount(() => {
     fetchMeta();
-    fetchAvailableCodes();
     fetchRows(1);
   });
 
   const goToPage = (page) => {
     if (page >= 1 && page <= pagination()?.totalPages) {
-      fetchRows(page, search(), selectedCodes());
+      fetchRows(page, search(), filterParams());
     }
   };
 
@@ -116,21 +100,14 @@ function ResourceTable(props) {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       setCurrentPage(1);
-      fetchRows(1, value, selectedCodes());
+      fetchRows(1, value, filterParams());
     }, 500);
   };
 
-  const handleCodeChange = (e) => {
-    const code = e.target.value;
-    let updated = [...selectedCodes()];
-    if (e.target.checked) {
-      if (!updated.includes(code)) updated.push(code);
-    } else {
-      updated = updated.filter((c) => c !== code);
-    }
-    setSelectedCodes(updated);
+  const handleFilterChange = (entries) => {
+    setFilterParams(entries);
     setCurrentPage(1);
-    fetchRows(1, search(), updated);
+    fetchRows(1, search(), entries);
   };
 
   const formatDate = (dateString) => {
@@ -167,33 +144,8 @@ function ResourceTable(props) {
           value={search()}
           onInput={handleSearchInput}
         />
-        <Show when={availableCodes().length > 0}>
-          <div class="code-filter-wrapper">
-            <button
-              class="filter-btn"
-              onClick={() => setShowCodeFilter(!showCodeFilter())}
-            >
-              Codes {selectedCodes().length > 0 ? `(${selectedCodes().length})` : ""}
-            </button>
-            <Show when={showCodeFilter()}>
-              <div class="code-filter-dropdown">
-                <For each={availableCodes()}>
-                  {(code) => (
-                    <label>
-                      <input
-                        type="checkbox"
-                        value={code}
-                        checked={selectedCodes().includes(String(code))}
-                        onChange={handleCodeChange}
-                      /> {code}
-                    </label>
-                  )}
-                </For>
-              </div>
-            </Show>
-          </div>
-        </Show>
-        <button class="refresh-btn" onClick={() => fetchRows(currentPage(), search(), selectedCodes())} disabled={loading()}>
+        {FiltersComponent && <FiltersComponent resource={props.resource} onChange={handleFilterChange} />}
+        <button class="refresh-btn" onClick={() => fetchRows(currentPage(), search(), filterParams())} disabled={loading()}>
           {loading() ? "Refreshing..." : "Refresh"}
         </button>
       </div>
